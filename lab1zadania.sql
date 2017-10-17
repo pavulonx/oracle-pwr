@@ -74,29 +74,49 @@ SELECT
 FROM Kocury
 ORDER BY imie ASC;
 
---9
+--9--
+--a
 SELECT
   PSEUDO,
-  W_STADKU_OD "W STADKU",
-  CASE
-  WHEN EXTRACT(DAY FROM W_STADKU_OD) BETWEEN 1 AND 15
-    THEN
-      CASE
-      WHEN NEXT_DAY(LAST_DAY('2017-10-26') - 7, 'WEDNESDAY') < '2017-10-26'
-        THEN NEXT_DAY(LAST_DAY(ADD_MONTHS('2017-10-26', 1)) - 7, 'WEDNESDAY')
-      ELSE
-        NEXT_DAY(LAST_DAY('2017-10-26') - 7, 'WEDNESDAY')
-      END
-  ELSE
-    NEXT_DAY(LAST_DAY(ADD_MONTHS('2017-10-26', 1)) - 7, 'WEDNESDAY')
-  END         "WYPLATA"
+  to_char(W_STADKU_OD, 'yyyy-mm-dd') "W STADKU",
+  to_char(CASE
+          WHEN EXTRACT(DAY FROM W_STADKU_OD) <= 15
+            THEN
+              CASE
+              WHEN NEXT_DAY(LAST_DAY(TO_DATE('2017-10-23', 'yyyy-mm-dd')) - 7, 'WEDNESDAY') <
+                   TO_DATE('2017-10-23', 'yyyy-mm-dd')
+                THEN NEXT_DAY(LAST_DAY(ADD_MONTHS(TO_DATE('2017-10-26', 'yyyy-mm-dd'), 1)) - 7, 'WEDNESDAY')
+              ELSE
+                NEXT_DAY(LAST_DAY(TO_DATE('2017-10-23', 'yyyy-mm-dd')) - 7, 'WEDNESDAY')
+              END
+          ELSE
+            NEXT_DAY(LAST_DAY(ADD_MONTHS(TO_DATE('2017-10-23', 'yyyy-mm-dd'), 1)) - 7, 'WEDNESDAY')
+          END, 'yyyy-mm-dd')         "WYPLATA"
+FROM Kocury;
+--b
+SELECT
+  PSEUDO,
+  to_char(W_STADKU_OD, 'yyyy-mm-dd') "W STADKU",
+  to_char(CASE
+          WHEN EXTRACT(DAY FROM W_STADKU_OD) <= 15
+            THEN
+              CASE
+              WHEN NEXT_DAY(LAST_DAY(TO_DATE('2017-10-26', 'yyyy-mm-dd')) - 7, 'WEDNESDAY') <
+                   TO_DATE('2017-10-26', 'yyyy-mm-dd')
+                THEN NEXT_DAY(LAST_DAY(ADD_MONTHS(TO_DATE('2017-10-26', 'yyyy-mm-dd'), 1)) - 7, 'WEDNESDAY')
+              ELSE
+                NEXT_DAY(LAST_DAY(TO_DATE('2017-10-26', 'yyyy-mm-dd')) - 7, 'WEDNESDAY')
+              END
+          ELSE
+            NEXT_DAY(LAST_DAY(ADD_MONTHS(TO_DATE('2017-10-26', 'yyyy-mm-dd'), 1)) - 7, 'WEDNESDAY')
+          END, 'yyyy-mm-dd')         "WYPLATA"
 FROM Kocury;
 
 --10--
 SELECT CASE COUNT(pseudo)
        WHEN 1
-         THEN pseudo || '-Unikalny'
-       ELSE pseudo || '-Nieunikalny'
+         THEN pseudo || ' - Unikalny'
+       ELSE pseudo || ' - Nieunikalny'
        END "Unikalnosc atr.PSEUDO"
 FROM Kocury
 GROUP BY pseudo;
@@ -105,9 +125,9 @@ GROUP BY pseudo;
 
 SELECT CASE COUNT(szef)
        WHEN 1
-         THEN szef || '-Unikalny'
-       ELSE szef || '-Nieunikalny'
-       END "Unikalnosc atr.SZEF"
+         THEN szef || ' - Unikalny'
+       ELSE szef || ' - Nieunikalny'
+       END "Unikalnosc atr. SZEF"
 FROM Kocury
 WHERE szef IS NOT NULL
 GROUP BY szef;
@@ -123,12 +143,12 @@ HAVING COUNT(imie_wroga) >= 2;
 --12--
 
 SELECT
-  'Liczba kotow='                                    "  ",
-  COUNT(*)                                           " ",
+  'Liczba kotow='                                    " ",
+  COUNT(*)                                           "  ",
   'lowi jako'                                        "   ",
-  funkcja                                            "     ",
-  'i zjada max.'                                     "      ",
-  MAX(NVL(przydzial_myszy, 0) + NVL(myszy_extra, 0)) "       "
+  funkcja                                            "    ",
+  'i zjada max.'                                     "     ",
+  MAX(NVL(przydzial_myszy, 0) + NVL(myszy_extra, 0)) "      "
 FROM Kocury
 WHERE
   funkcja <> 'SZEFUNIO'
@@ -159,12 +179,12 @@ START WITH funkcja = 'BANDZIOR';
 SELECT
   RPAD((LPAD((LEVEL - 1), (LEVEL - 1) * 4 + 1, '===>')), 16) ||
   LPAD(' ', (LEVEL - 1) * 4) || imie "Hierarchia",
-  NVL(szef, 'Sam sobie panem')       "Pseudo szefa",
+  NVL(SZEF, 'Sam sobie panem')       "Pseudo szefa",
   funkcja                            "Funkcja"
 FROM Kocury
-WHERE NVL(myszy_extra, 0) > 0
-CONNECT BY PRIOR pseudo = szef
-START WITH szef IS NULL;
+WHERE NVL(MYSZY_EXTRA, 0) > 0
+START WITH SZEF IS NULL
+CONNECT BY PRIOR PSEUDO = SZEF;
 
 --16--
 SELECT LPAD(' ', 3 * (LEVEL - 1)) || pseudo "Droga sluzbowa"
