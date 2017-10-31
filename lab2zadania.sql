@@ -29,35 +29,28 @@ FROM KOCURY K1 LEFT JOIN KOCURY K2 ON K1.SZEF = K2.PSEUDO
   LEFT JOIN KOCURY K4 ON (K3.SZEF = K4.PSEUDO)
 WHERE K1.FUNKCJA IN ('KOT', 'MILUSIA');
 
---B
+--B---------------------------------------------------------------------------------------------------------------------
 SELECT
-  CONNECT_BY_ROOT IMIE                                              AS "IMIE",
-  ' | '                                                                " ",
-  FUNKCJA                                                           AS "FUNKCJA",
-  ' | '                                                                " ",
-  NVL((SELECT IMIE
-       FROM
-         KOCURY
-       WHERE LEVEL = 2
-       CONNECT BY PRIOR SZEF = PSEUDO
-       START WITH PSEUDO = K.PSEUDO), ' ')                          AS "SZEF 1",
-  ' | '                                                                " ",
-  NVL((SELECT IMIE
-       FROM KOCURY
-       WHERE LEVEL = 3
-       CONNECT BY PRIOR
-                  SZEF = PSEUDO START WITH PSEUDO = K.PSEUDO), ' ') AS "
-SZEF 2",
-  ' | '                                                                " ",
-  NVL((SELECT IMIE
-       FROM KOCURY
-       WHERE LEVEL = 4
-       CONNECT BY PRIOR SZEF = PSEUDO
-       START WITH PSEUDO = K.PSEUDO), ' ')                          AS "SZEF 3"
-FROM KOCURY K
-WHERE FUNKCJA IN ('KOT', 'MILUSIA')
-CONNECT BY PRIOR SZEF = PSEUDO
-START WITH FUNKCJA IN ('KOT', 'MILUSIA');
+  IMIE          "IMIE",
+  FUNKCJA       "FUNKCJA",
+  NVL("1", ' ') "SZEF1",
+  NVL("2", ' ') "SZEF2",
+  NVL("3", ' ') "SZEF3"
+FROM (SELECT
+        CONNECT_BY_ROOT IMIE    "IMIE",
+        CONNECT_BY_ROOT FUNKCJA "FUNKCJA",
+        LEVEL                   "LVL",
+        SZEF
+      FROM KOCURY K
+      CONNECT BY PRIOR SZEF = PSEUDO
+      START WITH FUNKCJA IN ('KOT', 'MILUSIA')
+)
+      PIVOT (
+        MIN(SZEF)
+        FOR LVL
+        IN (1, 2, 3)
+      );
+------------------------------------------------------------------------------------------------------------------------
 
 --C
 SELECT
@@ -88,7 +81,6 @@ WHERE K.PLEC = 'D' AND WK.DATA_INCYDENTU > TO_DATE('2007-01-01', 'YYYY-MM-DD');
 SELECT
   B.NAZWA                  "NAZWA BANDY",
   COUNT(DISTINCT K.PSEUDO) "KOTY Z WROGAMI"
-
 FROM BANDY B
   JOIN KOCURY K
   JOIN WROGOWIE_KOCUROW WK ON K.PSEUDO = WK.PSEUDO
@@ -183,7 +175,7 @@ SELECT
   PSEUDO,
   (NVL(PRZYDZIAL_MYSZY, 0) + NVL(MYSZY_EXTRA, 0)) "ZJADA"
 FROM KOCURY K
-WHERE &HOWMANY >= (
+WHERE &HOWMANY > (
   SELECT DISTINCT COUNT(NVL(PRZYDZIAL_MYSZY, 0) + NVL(MYSZY_EXTRA, 0))
   FROM KOCURY
   WHERE NVL(K.PRZYDZIAL_MYSZY, 0) + NVL(K.MYSZY_EXTRA, 0) < NVL(PRZYDZIAL_MYSZY, 0) + NVL(MYSZY_EXTRA, 0)
@@ -202,7 +194,7 @@ WHERE NVL(PRZYDZIAL_MYSZY, 0) + NVL(MYSZY_EXTRA, 0) IN (
     FROM KOCURY
     ORDER BY 1 DESC
   )
-  WHERE ROWNUM <= 6
+  WHERE ROWNUM <= &HOWMANY
 );
 
 --C--
