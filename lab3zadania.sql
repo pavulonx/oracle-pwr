@@ -312,7 +312,7 @@ CREATE OR REPLACE PROCEDURE nowaBanda(nrB Bandy.nr_bandy%TYPE, nazwaB Bandy.nazw
     WHEN null_values THEN dbms_output.put_line('Niewprowadzono wszystkich danych !');
     WHEN OTHERS THEN RAISE;
   END;
-CALL nowaBanda(2, 'dsa', 'iuhai');
+CALL nowaBanda(25, 'dsa', 'iuhai');
 -- CALL nowaBanda(10, 'SZEFOSTWO', 'POLE');
 SELECT *
 FROM Bandy;
@@ -575,12 +575,101 @@ BEGIN
   dbms_output.put_line(nvl(temp, 0));
 END;
 
-/* zad 44 */
+
+
+-- another 43/**/
+/*DECLARE
+  TYPE MAP_STRING_INT IS TABLE OF NUMBER INDEX BY Funkcje.funkcja%TYPE;
+
+  suma_funkcji MAP_STRING_INT;
+  i            NUMBER := 0;
+  suma_banda   NUMBER;
+  suma_calosc  NUMBER := 0;
+BEGIN
+  DBMS_OUTPUT.PUT(RPAD('Nazwa Bandy', 16));
+  DBMS_OUTPUT.PUT(RPAD('Plec', 7));
+  DBMS_OUTPUT.PUT(RPAD('Ile', 8));
+  FOR funkcja IN (SELECT funkcja
+                  FROM Funkcje) LOOP
+    DBMS_OUTPUT.PUT(RPAD(funkcja.funkcja, 13));
+    suma_funkcji(funkcja.funkcja) := 0;
+  END LOOP;
+  DBMS_OUTPUT.PUT(RPAD('SUMA', 13));
+  DBMS_OUTPUT.NEW_LINE();
+
+  DBMS_OUTPUT.PUT('-------------- ------- ------');
+  FOR i IN 1 .. (suma_funkcji.COUNT + 1) LOOP
+    DBMS_OUTPUT.PUT(RPAD(' ', 13, '-'));
+  END LOOP;
+  DBMS_OUTPUT.NEW_LINE();
+
+  FOR banda IN (
+  SELECT
+    nr_bandy,
+    MIN(nazwa)    nazwa,
+    plec,
+    COUNT(pseudo) ile
+  FROM Kocury
+    NATURAL JOIN Bandy
+  GROUP BY nr_bandy, plec
+  ORDER BY 2, 3 ASC) LOOP
+    IF MOD(i, 2) = 0
+    THEN
+      DBMS_OUTPUT.PUT(RPAD(banda.nazwa, 16));
+      DBMS_OUTPUT.PUT(RPAD('Kotka', 7));
+    ELSE
+      DBMS_OUTPUT.PUT(LPAD(' ', 16));
+      DBMS_OUTPUT.PUT(RPAD('Kocor', 7));
+    END IF;
+
+    DBMS_OUTPUT.PUT(RPAD(banda.ile, 8));
+
+    suma_banda := 0;
+    FOR funkcja IN (
+    SELECT
+      f.funkcja,
+      SUM(NVL(k.przydzial_myszy, 0) + NVL(k.myszy_extra, 0)) suma
+    FROM Funkcje f
+      LEFT JOIN Kocury k ON f.funkcja = k.funkcja
+                            AND k.nr_bandy = banda.nr_bandy
+                            AND k.plec = banda.plec
+    GROUP BY f.funkcja
+    ORDER BY 1) LOOP
+      suma_banda := suma_banda + funkcja.suma;
+      suma_funkcji(funkcja.funkcja) := suma_funkcji(funkcja.funkcja) + funkcja.suma;
+      DBMS_OUTPUT.PUT(RPAD(funkcja.suma, 13));
+    END LOOP;
+
+    DBMS_OUTPUT.PUT_LINE(RPAD(suma_banda, 13));
+
+    suma_calosc := suma_calosc + suma_banda;
+    i := i + 1;
+  END LOOP;
+
+  DBMS_OUTPUT.PUT('z------------- ------- ------');
+  FOR i IN 1 .. (suma_funkcji.COUNT + 1) LOOP
+    DBMS_OUTPUT.PUT(RPAD(' ', 13, '-'));
+  END LOOP;
+  DBMS_OUTPUT.NEW_LINE();
+
+  DBMS_OUTPUT.PUT(RPAD('ZJADA RAZEM', 31));
+
+  FOR funkcja IN (SELECT funkcja
+                  FROM Funkcje) LOOP
+    DBMS_OUTPUT.PUT(RPAD(suma_funkcji(funkcja.funkcja), 13));
+  END LOOP;
+
+  DBMS_OUTPUT.PUT_LINE(suma_calosc);
+END;*/
+
+
+-- 44
 CREATE OR REPLACE PACKAGE podatek_poglowny AS
   FUNCTION podatek(ps Kocury.pseudo%TYPE)
     RETURN NUMBER;
   PROCEDURE nowaBanda(nrB Bandy.nr_bandy%TYPE, nazwaB Bandy.nazwa%TYPE, terenB Bandy.teren%TYPE);
 END podatek_poglowny;
+
 CREATE OR REPLACE PACKAGE BODY podatek_poglowny AS
   FUNCTION podatek(ps Kocury.pseudo%TYPE)
     RETURN NUMBER IS
@@ -620,7 +709,7 @@ CREATE OR REPLACE PACKAGE BODY podatek_poglowny AS
       FROM Kocury;
       IF temp < temp2
       THEN
-        sumaPod := sumaPod + temp;
+        sumaPod := sumaPod + 1;
       END IF;
 
       RETURN sumaPod;
@@ -677,7 +766,7 @@ CREATE OR REPLACE PACKAGE BODY podatek_poglowny AS
         RAISE less_zero;
       END IF;
       INSERT INTO Bandy (NR_BANDY, NAZWA, TEREN) VALUES (nrB, nazwaB, terenB);
-      dbms_output.put_line('Pola dodane pomy�lnie !');
+      dbms_output.put_line('Pola dodane pomyslnie !');
       EXCEPTION
       WHEN dup_values THEN dbms_output.put_line(' :juz istnieje');
       WHEN less_zero THEN dbms_output.put_line('Numer bandy <= 0');
@@ -699,7 +788,9 @@ BEGIN
     dbms_output.put(rpad(podatek_poglowny.podatek(kot.pseudo), 10));
     dbms_output.new_line();
   END LOOP;
-END;
+END;;
+ROLLBACK;
+
 
 /* zad 45 */
 DROP SEQUENCE indexDodatki;
@@ -767,9 +858,17 @@ FROM Dodatki_extra;
 ROLLBACK;
 SHOW errors;
 
+SELECT USER
+FROM dual;
+CREATE TABLE LOGI_ZMIAN_PRZYDZIALU (
+  KTO      VARCHAR2(255),
+  KIEDY    DATE,
+  PSEUDO   VARCHAR2(255),
+  OPERACJA VARCHAR2(255)
+);
 
 CREATE OR REPLACE TRIGGER CONSTR_MIN_MAX_TRIG
-BEFORE INSERT ON KOCURY
+BEFORE UPDATE OR INSERT ON KOCURY
 FOR EACH ROW
   DECLARE
     MIN_M   KOCURY.PRZYDZIAL_MYSZY%TYPE;
@@ -791,11 +890,38 @@ FOR EACH ROW
     INTO MIN_M, MAX_M
     FROM FUNKCJE F
     WHERE F.FUNKCJA = :OLD.FUNKCJA;
-    IF :NEW.PRZYDZIAL_MYSZY < MIN_M OR MAX_M < :NEW.PRZYDZIAL_MYSZY
+    IF :NEW.PRZYDZIAL_MYSZY < MIN_M
     THEN
-      :NEW.PRZYDZIAL_MYSZY := :OLD.PRZYDZIAL_MYSZY;
+      :NEW.PRZYDZIAL_MYSZY := MIN_M;
+      INSERT INTO LOGI_ZMIAN_PRZYDZIALU VALUES (USER, SYSDATE, :OLD.PSEUDO, OP_TYPE);
+      --     END IF;
+    ELSIF MAX_M < :NEW.PRZYDZIAL_MYSZY
+      THEN
+        :NEW.PRZYDZIAL_MYSZY := MAX_M;
+        INSERT INTO LOGI_ZMIAN_PRZYDZIALU VALUES (USER, SYSDATE, :OLD.PSEUDO, OP_TYPE);
     END IF;
-  END;
+  END;;
+;
+
+UPDATE KOCURY
+SET PRZYDZIAL_MYSZY = PRZYDZIAL_MYSZY + 790
+WHERE KOCURY.PSEUDO = 'LASKA';
+;
+
+SELECT PSEUDO, PRZYDZIAL_MYSZY, MIN_MYSZY, MAX_MYSZY
+FROM KOCURY JOIN FUNKCJE ON KOCURY.FUNKCJA = FUNKCJE.FUNKCJA
+WHERE KOCURY.PSEUDO = 'LASKA';
+;
+SELECT PRZYDZIAL_MYSZY
+FROM KOCURY
+WHERE PSEUDO = 'LASKA';
+INSERT INTO LOGI_ZMIAN_PRZYDZIALU VALUES (USER, SYSDATE, 'BELA', 'INSERTING');
+
+SELECT *
+FROM LOGI_ZMIAN_PRZYDZIALU;
+
+-- DELETE FROM LOGI_ZMIAN_PRZYDZIALU;
+ROLLBACK;
 
 --CREATE OR REPLACE TRIGGER trig_antywirus
 --AFTER UPDATE OF przydzial_myszy, myszy_extra ON Kocury

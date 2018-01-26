@@ -1,3 +1,5 @@
+
+
 --BANDY--
 INSERT INTO Bandy(nr_bandy,nazwa,teren) VALUES(1,'SZEFOSTWO','CALOSC');
 INSERT INTO Bandy(nr_bandy,nazwa,teren) VALUES(2,'CZARNI RYCERZE','POLE');
